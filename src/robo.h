@@ -55,5 +55,6 @@ void  desativarSubarvore(Peca *peca);
 const char *nomePeca(TipoPeca tipo);
 TipoPeca    punhoDoLado(int lado);
 TipoPeca    bracoDoLado(int lado);
+const char *preposicaoPeca(TipoPeca tipo);
 
 #endif /* ROBO_H */

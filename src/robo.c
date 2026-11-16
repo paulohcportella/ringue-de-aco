@@ -262,3 +262,9 @@ TipoPeca bracoDoLado(int lado)
 {
     return (lado == FILHO_ESQ) ? BRACO_E : BRACO_D;
 }
+
+/* preposicaoPeca: "na" para peças femininas (Base, Pernas), "no" para as demais. O(1). */
+const char *preposicaoPeca(TipoPeca tipo)
+{
+    return (tipo == BASE || tipo == PERNA_E || tipo == PERNA_D) ? "na" : "no";
+}

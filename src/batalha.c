@@ -224,8 +224,8 @@ static void executarGolpe(Batalha *b, const Acao *a, Evento *ev)
 
     if (!pecaExposta(b->robo[q], a->alvo)) {
         ev->noVazio = true;
-        snprintf(ev->texto, TAM_TEXTO, "J%d: %s no %s de J%d... golpe no vazio",
-                 a->jogador, nomeAcao(a->tipo), nomePeca(a->alvo), q + 1);
+        snprintf(ev->texto, TAM_TEXTO, "J%d: %s %s %s de J%d... golpe no vazio",
+                 a->jogador, nomeAcao(a->tipo), preposicaoPeca(a->alvo), nomePeca(a->alvo), q + 1);
         return;
     }
     if (b->esquivasPendentes[q] > 0) {
@@ -244,11 +244,11 @@ static void executarGolpe(Batalha *b, const Acao *a, Evento *ev)
     ev->danoCausado = aplicarDano(alvo, dano);
     ev->pecaDestruida = !alvo->ativa;
     if (ev->pecaDestruida) {
-        snprintf(extra, sizeof(extra), " %s DESTRUÍDO!",
-                 a->alvo == NUCLEO ? "NÚCLEO" : nomePeca(a->alvo));
+        snprintf(extra, sizeof(extra), " (%s %s!)", nomePeca(a->alvo),
+                 (a->alvo == BASE || a->alvo == PERNA_E || a->alvo == PERNA_D) ? "destruída" : "destruído");
     }
-    snprintf(ev->texto, TAM_TEXTO, "J%d: %s no %s de J%d, -%d%s%s",
-             a->jogador, nomeAcao(a->tipo), nomePeca(a->alvo), q + 1, ev->danoCausado,
+    snprintf(ev->texto, TAM_TEXTO, "J%d: %s %s %s de J%d, -%d%s%s",
+             a->jogador, nomeAcao(a->tipo), preposicaoPeca(a->alvo), nomePeca(a->alvo), q + 1, ev->danoCausado,
              ev->bloqueado ? " (bloqueado)" : "", extra);
 }
 
