@@ -192,7 +192,7 @@ int calcularIntegridade(const Peca *raiz)
     return soma + calcularIntegridade(raiz->esq) + calcularIntegridade(raiz->dir);
 }
 
-/* calcularIntegridadeMaxima: soma das resistências máximas (420). O(n). */
+/* calcularIntegridadeMaxima: soma das resistências máximas (275 no config.h atual). O(n). */
 int calcularIntegridadeMaxima(const Peca *raiz)
 {
     if (raiz == NULL) {

@@ -60,7 +60,7 @@ int main(void)
     int opcao = 0, i, quadros;
     bool fotoResolucao = false;
 
-    SetConfigFlags(FLAG_MSAA_4X_HINT);
+    /* sem MSAA: as máquinas virtuais do GitHub (sem placa de vídeo) não suportam */
     InitWindow(LARGURA_JANELA, ALTURA_JANELA, "Ringue de Aço");
     SetTargetFPS(FPS_ALVO);
     liberarEntrada(true);
