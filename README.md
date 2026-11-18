@@ -220,7 +220,8 @@ tests/
 ferramentas/
   capturar_telas.c  joga uma luta roteirizada e salva um PNG de cada tela
   centros_pecas.c   ponto do meio de cada peça na tela (para clicar no vídeo)
-  gravar_video.sh   grava uma luta completa numa tela virtual do Linux
+  gravador.c        grava cada quadro do jogo (ligado com -Wl,--wrap=EndDrawing)
+  gravar_video.sh   joga uma luta completa numa tela virtual do Linux e grava
 pacote/           LEIA-ME e Info.plist dos pacotes gerados pelo GitHub Actions
 .github/workflows/
   build.yml       compila e testa no Linux, macOS e Windows

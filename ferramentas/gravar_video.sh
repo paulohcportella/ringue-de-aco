@@ -1,14 +1,15 @@
 #!/usr/bin/env bash
 # gravar_video.sh
-# Grava um vídeo do jogo de verdade (build/ringue-de-aco) numa tela virtual
-# (Xvfb), jogando uma luta completa com teclado e mouse simulados (xdotool).
+# Grava um vídeo do jogo de verdade numa tela virtual (Xvfb), jogando uma
+# luta completa com teclado e mouse simulados (xdotool).
+# O binário ./gravacao é o jogo normal ligado com ferramentas/gravador.c
+# (-Wl,--wrap=EndDrawing), que manda cada quadro para o ffmpeg.
 # Uso (Linux): bash ferramentas/gravar_video.sh   -> gera video/ringue-de-aco.mp4
 set -euo pipefail
 
 export DISPLAY=:99
 mkdir -p video
-export LIBGL_DRI3_DISABLE=1
-Xvfb :99 -screen 0 1280x720x24 -ac +extension GLX +render -noreset &
+Xvfb :99 -screen 0 1280x720x24 &
 sleep 2
 
 # coordenadas do meio de cada peça na tela de programação
@@ -24,14 +25,13 @@ clicar() {  # clicar <x> <y> [espera]
 }
 descansar() { xdotool mousemove 1270 470; }
 
-./build/ringue-de-aco &
+export GRAVAR_PIPE="ffmpeg -loglevel error -y -f rawvideo -pix_fmt rgba -s 1280x720 -r 30 -i - \
+-c:v libx264 -preset veryfast -crf 22 -pix_fmt yuv420p video/ringue-de-aco.mp4"
+descansar
+./gravacao &
 JOGO=$!
 xdotool search --sync --name "Ringue" > /dev/null
 sleep 1.5
-ffmpeg -loglevel error -y -f x11grab -video_size 1280x720 -framerate 30 -i :99 \
-    -c:v libx264 -preset veryfast -crf 23 -pix_fmt yuv420p video/ringue-de-aco.mp4 &
-GRAVADOR=$!
-descansar
 sleep 3                                   # menu
 
 # ---------- Como jogar ----------
@@ -81,9 +81,10 @@ tecla 4; tecla space                      # J2: Bloqueio + Jab que derruba a Per
 tecla 1; tecla Left
 clicar "$J1_PERNA_E_X" "$J1_PERNA_E_Y" 1.5
 descansar; tecla Return 10                # resolução até o Núcleo cair
-sleep 4                                   # tela de vitória
-tecla r 3                                 # revanche
+sleep 5                                   # tela de vitória
+tecla m 2                                 # volta ao menu
+tecla Down; tecla Down; tecla Return 1    # Sair: o jogo fecha e o ffmpeg termina o arquivo
 
-kill -INT "$GRAVADOR"; wait "$GRAVADOR" || true
-kill "$JOGO" || true
+wait "$JOGO" || true
+while pgrep -x ffmpeg > /dev/null; do sleep 1; done
 ls -la video
