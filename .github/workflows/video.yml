@@ -29,7 +29,16 @@ jobs:
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
         run: bash ferramentas/gravar_video.sh
+      - name: Quadros para conferir
+        run: |
+          ffprobe -v error -show_entries format=duration -of csv=p=0 video/ringue-de-aco.mp4
+          mkdir -p quadros
+          ffmpeg -loglevel error -i video/ringue-de-aco.mp4 -vf fps=1/8,scale=640:-1 quadros/q%02d.png
       - uses: actions/upload-artifact@v4
         with:
           name: video
           path: video/ringue-de-aco.mp4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: quadros
+          path: quadros/*.png
