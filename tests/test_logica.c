@@ -16,6 +16,9 @@
 #include "../src/batalha.h"
 #include "../src/config.h"
 
+/* Integridade de um robô inteiro, calculada a partir do config.h */
+#define TOTAL_RES (RES_NUCLEO + RES_TRONCO + RES_BASE + 2 * RES_BRACO + 2 * RES_PUNHO + 2 * RES_PERNA)
+
 /* ---------- Contador de memória ---------- */
 #ifdef CONTAR_MEMORIA
 void *__real_malloc(size_t n);
@@ -81,8 +84,8 @@ TESTE(teste_montar_e_buscar)
         Peca *p = buscarPeca(r, (TipoPeca)t);
         assert(p != NULL && p->tipo == (TipoPeca)t && p->ativa);
     }
-    assert(calcularIntegridade(r) == 420);
-    assert(calcularIntegridadeMaxima(r) == 420);
+    assert(calcularIntegridade(r) == TOTAL_RES);
+    assert(calcularIntegridadeMaxima(r) == TOTAL_RES);
     assert(velocidadeDoRobo(r) == 2);
     /* inserir num lugar ocupado falha */
     {
@@ -98,38 +101,38 @@ TESTE(teste_dano_minimo_zero_e_excedente_perdido)
     Peca *r = montarRobo();
     Peca *punho = buscarPeca(r, PUNHO_E);
     assert(aplicarDano(punho, 10) == 10);
-    assert(punho->resistencia == 20 && punho->ativa);
-    assert(aplicarDano(punho, 50) == 20);   /* só 20 eram possíveis */
+    assert(punho->resistencia == RES_PUNHO - 10 && punho->ativa);
+    assert(aplicarDano(punho, 50) == RES_PUNHO - 10);   /* só o que restava */
     assert(punho->resistencia == 0 && !punho->ativa);
     assert(aplicarDano(punho, 10) == 0);    /* peça inativa não recebe dano */
-    assert(calcularIntegridade(r) == 390);
+    assert(calcularIntegridade(r) == TOTAL_RES - RES_PUNHO);
     liberarRobo(r);
 }
 
 TESTE(teste_cascata_tronco)
 {
     Peca *r = montarRobo();
-    aplicarDano(buscarPeca(r, TRONCO), 80);
+    aplicarDano(buscarPeca(r, TRONCO), RES_TRONCO);
     assert(!pecaAtiva(r, TRONCO));
     assert(!pecaAtiva(r, BRACO_E) && !pecaAtiva(r, BRACO_D));
     assert(!pecaAtiva(r, PUNHO_E) && !pecaAtiva(r, PUNHO_D));
     assert(pecaAtiva(r, NUCLEO) && pecaAtiva(r, BASE));
     assert(pecaAtiva(r, PERNA_E) && pecaAtiva(r, PERNA_D));
-    /* 420 - tronco 80 - braços 80 - punhos 60 */
-    assert(calcularIntegridade(r) == 200);
+    /* total - tronco - 2 braços - 2 punhos */
+    assert(calcularIntegridade(r) == TOTAL_RES - RES_TRONCO - 2 * RES_BRACO - 2 * RES_PUNHO);
     liberarRobo(r);
 }
 
 TESTE(teste_cascata_braco_e_base)
 {
     Peca *r = montarRobo();
-    aplicarDano(buscarPeca(r, BRACO_D), 40);
+    aplicarDano(buscarPeca(r, BRACO_D), RES_BRACO);
     assert(!pecaAtiva(r, BRACO_D) && !pecaAtiva(r, PUNHO_D));
     assert(pecaAtiva(r, BRACO_E) && pecaAtiva(r, PUNHO_E));
 
-    aplicarDano(buscarPeca(r, PERNA_E), 35);
+    aplicarDano(buscarPeca(r, PERNA_E), RES_PERNA);
     assert(velocidadeDoRobo(r) == 1);
-    aplicarDano(buscarPeca(r, BASE), 70);
+    aplicarDano(buscarPeca(r, BASE), RES_BASE);
     assert(!pecaAtiva(r, PERNA_D));
     assert(velocidadeDoRobo(r) == 0);
     liberarRobo(r);
@@ -140,15 +143,15 @@ TESTE(teste_nucleo_exposto)
     Peca *r = montarRobo();
     assert(!pecaExposta(r, NUCLEO));
     assert(pecaExposta(r, TRONCO) && pecaExposta(r, PUNHO_E));
-    aplicarDano(buscarPeca(r, BASE), 70);
+    aplicarDano(buscarPeca(r, BASE), RES_BASE);
     assert(pecaExposta(r, NUCLEO));
     assert(!pecaExposta(r, PERNA_E));        /* inativa */
     liberarRobo(r);
 
     r = montarRobo();
-    aplicarDano(buscarPeca(r, TRONCO), 80);
+    aplicarDano(buscarPeca(r, TRONCO), RES_TRONCO);
     assert(pecaExposta(r, NUCLEO));
-    aplicarDano(buscarPeca(r, NUCLEO), 60);
+    aplicarDano(buscarPeca(r, NUCLEO), RES_NUCLEO);
     assert(!pecaExposta(r, NUCLEO));
     assert(calcularIntegridade(r) == 0);     /* núcleo derruba tudo */
     liberarRobo(r);
@@ -268,8 +271,8 @@ TESTE(teste_remover_acoes_invalidas)
     Acao *canceladas = NULL;
 
     assert(removerAcoesInvalidas(&fila, r1, r2, &canceladas) == 0);
-    aplicarDano(buscarPeca(r1, BRACO_D), 40);   /* desliga Punho D de J1 */
-    aplicarDano(buscarPeca(r2, BASE), 70);      /* J2 sem esquiva */
+    aplicarDano(buscarPeca(r1, BRACO_D), RES_BRACO);   /* desliga Punho D de J1 */
+    aplicarDano(buscarPeca(r2, BASE), RES_BASE);      /* J2 sem esquiva */
     assert(removerAcoesInvalidas(&fila, r1, r2, &canceladas) == 2);
     assert(tamanhoLista(fila) == 2);
     assert(fila == golpeE && golpeE->prox == bloq2);
@@ -299,12 +302,12 @@ TESTE(teste_validacao)
     assert(programarAcao(&b, 2, BLOQUEIO, 0, NUCLEO, 0, NULL));
     assert(programarAcao(&b, 2, BLOQUEIO, 0, NUCLEO, 0, NULL));
     assert(!programarAcao(&b, 2, BLOQUEIO, 0, NUCLEO, 0, &motivo)); /* lista cheia */
-    aplicarDano(buscarPeca(b.robo[0], PUNHO_E), 30);
+    aplicarDano(buscarPeca(b.robo[0], PUNHO_E), RES_PUNHO);
     liberarLista(b.programacao[0]);
     b.programacao[0] = NULL;
     assert(!validarAcao(&b, 1, JAB, FILHO_ESQ, TRONCO, &motivo)); /* punho inativo */
     assert(validarAcao(&b, 1, JAB, FILHO_DIR, TRONCO, &motivo));
-    aplicarDano(buscarPeca(b.robo[0], BASE), 70);
+    aplicarDano(buscarPeca(b.robo[0], BASE), RES_BASE);
     assert(!validarAcao(&b, 1, ESQUIVA, 0, NUCLEO, &motivo));
     assert(velocidadePrevista(&b, 1, JAB, 0) == 8 + 2 + 0);
     encerrarBatalha(&b);
@@ -331,7 +334,7 @@ TESTE(teste_bloqueio_e_gancho)
         assert(ev.acao.tipo == GANCHO && !ev.bloqueado && ev.danoCausado == 35);
         assert(!executarProximaAcao(&b, &ev));
     }
-    assert(buscarPeca(b.robo[1], TRONCO)->resistencia == 80 - 10 - 35);
+    assert(buscarPeca(b.robo[1], TRONCO)->resistencia == RES_TRONCO - 10 - 35);
     encerrarRodada(&b);
     assert(b.rodada == 2 && b.vencedor == 0);
     encerrarBatalha(&b);
@@ -361,7 +364,7 @@ TESTE(teste_golpe_no_vazio)
     Evento ev;
     assert(iniciarBatalha(&b));
     assert(programarAcao(&b, 1, JAB, 0, BRACO_D, 0, NULL));
-    aplicarDano(buscarPeca(b.robo[1], BRACO_D), 40);   /* alvo some antes */
+    aplicarDano(buscarPeca(b.robo[1], BRACO_D), RES_BRACO);   /* alvo some antes */
     prepararResolucao(&b);
     assert(executarProximaAcao(&b, &ev));
     assert(ev.noVazio && ev.danoCausado == 0);
@@ -424,7 +427,8 @@ TESTE(teste_luta_completa_ate_vitoria)
         resolverRodada(&b);
     }
     assert(b.vencedor == 1 && b.vitoriaPorNucleo);
-    assert(b.rodada == 4);
+    /* rodada 1: Gancho + Direto (55) derrubam a Base (45); rodada 2: o Núcleo (40) */
+    assert(b.rodada == 2);
     assert(!pecaAtiva(b.robo[1], NUCLEO));
     assert(calcularIntegridade(b.robo[1]) == 0);
     encerrarBatalha(&b);
@@ -453,7 +457,7 @@ TESTE(teste_fim_por_rodadas)
         resolverRodada(&b);
     }
     assert(b.vencedor == 2);
-    assert(calcularIntegridade(b.robo[0]) == 420 - 10 * 5);
+    assert(calcularIntegridade(b.robo[0]) == TOTAL_RES - (DANO_JAB / DIVISOR_BLOQUEIO) * MAX_RODADAS);
     encerrarBatalha(&b);
 }
 

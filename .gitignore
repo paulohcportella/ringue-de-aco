@@ -2,3 +2,6 @@ build/
 local.mk
 *.exe
 *.o
+*.zip
+dist/
+ringue-de-aco-prompt-claude-code.md

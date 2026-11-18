@@ -1,0 +1,143 @@
+# Compila e testa o Ringue de Aço no Linux, no macOS e no Windows.
+# Gera os pacotes prontos para jogar (Windows e macOS) e, quando uma tag
+# v* é enviada, publica os dois numa Release do GitHub.
+name: build
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependências
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential valgrind pkg-config libasound2-dev libx11-dev \
+            libxrandr-dev libxi-dev libgl1-mesa-dev libglu1-mesa-dev libxcursor-dev libxinerama-dev
+      - name: Testes da lógica
+        run: make test
+      - name: Testes no valgrind
+        run: make valgrind
+      - name: raylib 5.5 (passos do README)
+        run: |
+          git clone --depth 1 --branch 5.5 https://github.com/raysan5/raylib.git /tmp/raylib
+          make -C /tmp/raylib/src PLATFORM=PLATFORM_DESKTOP -j4
+          sudo make -C /tmp/raylib/src install
+      - name: Compilar o jogo com o Makefile
+        run: make
+
+  macos:
+    runs-on: macos-latest
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "11.0"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Testes da lógica
+        run: make test
+      - name: Passos do README (brew + make)
+        run: |
+          brew install raylib pkg-config
+          make
+      - name: raylib 5.5 para arm64 e x86_64
+        run: |
+          git clone --depth 1 --branch 5.5 https://github.com/raysan5/raylib.git /tmp/raylib-arm64
+          cp -R /tmp/raylib-arm64 /tmp/raylib-x86_64
+          for A in arm64 x86_64; do
+            make -C /tmp/raylib-$A/src PLATFORM=PLATFORM_DESKTOP -j4 \
+              CUSTOM_CFLAGS="-arch $A -mmacosx-version-min=11.0"
+          done
+      - name: Compilar o app universal
+        run: |
+          for A in arm64 x86_64; do
+            clang -std=c99 -O2 -Wall -Wextra -arch $A -mmacosx-version-min=11.0 \
+              -Isrc -I/tmp/raylib-$A/src src/main.c src/interface.c src/robo.c src/acoes.c src/batalha.c \
+              -L/tmp/raylib-$A/src -lraylib \
+              -framework OpenGL -framework Cocoa -framework IOKit -framework CoreVideo -framework CoreAudio \
+              -o RingueDeAco-$A
+          done
+          lipo -create RingueDeAco-arm64 RingueDeAco-x86_64 -output RingueDeAco
+          lipo -info RingueDeAco
+          mkdir -p pacote-mac/RingueDeAco.app/Contents/MacOS
+          cp RingueDeAco pacote-mac/RingueDeAco.app/Contents/MacOS/RingueDeAco
+          cp pacote/Info.plist pacote-mac/RingueDeAco.app/Contents/Info.plist
+          codesign --force --deep -s - pacote-mac/RingueDeAco.app
+          cp pacote/LEIA-ME-macOS.txt pacote-mac/LEIA-ME.txt
+          cd pacote-mac && ditto -c -k --sequesterRsrc . ../RingueDeAco-macOS.zip
+      - name: O jogo abre? (prints das telas no macOS)
+        continue-on-error: true
+        run: |
+          clang -std=c99 -O2 -Isrc -I/tmp/raylib-arm64/src ferramentas/capturar_telas.c \
+            src/interface.c src/robo.c src/acoes.c src/batalha.c \
+            -L/tmp/raylib-arm64/src -lraylib \
+            -framework OpenGL -framework Cocoa -framework IOKit -framework CoreVideo -framework CoreAudio \
+            -o capturar
+          mkdir -p prints-macos
+          cd prints-macos && ../capturar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RingueDeAco-macOS
+          path: RingueDeAco-macOS.zip
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: prints-macos
+          path: prints-macos/*.png
+          if-no-files-found: ignore
+
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          install: mingw-w64-x86_64-gcc make unzip zip
+      - name: Testes da lógica
+        run: make test
+      - name: raylib 5.5 pré-compilada (MinGW)
+        run: |
+          curl -sSL -o raylib.zip https://github.com/raysan5/raylib/releases/download/5.5/raylib-5.5_win64_mingw-w64.zip
+          unzip -q raylib.zip
+      - name: Compilar com o Makefile (passos do README)
+        run: make RAYLIB=raylib-5.5_win64_mingw-w64
+      - name: Compilar o executável para distribuir
+        run: |
+          R=raylib-5.5_win64_mingw-w64
+          mkdir -p pacote-win
+          gcc -std=c99 -O2 -Wall -Wextra -pedantic -Isrc -I$R/include \
+            src/main.c src/interface.c src/robo.c src/acoes.c src/batalha.c \
+            -o pacote-win/RingueDeAco.exe -L$R/lib -lraylib -lopengl32 -lgdi32 -lwinmm -static -mwindows
+          cp pacote/LEIA-ME-Windows.txt pacote-win/LEIA-ME.txt
+          cd pacote-win && zip -q ../RingueDeAco-Windows.zip RingueDeAco.exe LEIA-ME.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RingueDeAco-Windows
+          path: RingueDeAco-Windows.zip
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [linux, macos, windows]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: RingueDeAco-*
+          merge-multiple: true
+      - name: Publicar a Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" RingueDeAco-Windows.zip RingueDeAco-macOS.zip \
+            --repo "$GITHUB_REPOSITORY" --title "Ringue de Aço $GITHUB_REF_NAME" \
+            --notes "Baixe o zip do seu sistema, extraia e abra o jogo. Instruções no README (seção Só quero jogar)."

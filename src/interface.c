@@ -92,6 +92,61 @@ static Vector2 centroDe(Rectangle r)
     return (Vector2){ r.x + r.width / 2.0f, r.y + r.height / 2.0f };
 }
 
+/* pulso: valor entre 0 e 1 que oscila com o tempo, para destaques piscando. */
+static float pulso(void)
+{
+    return 0.5f + 0.5f * sinf((float)GetTime() * 6.0f);
+}
+
+/*
+ * textoQuebrado: escreve o texto quebrando a linha nos espaços quando passa
+ * da largura dada. Devolve a altura ocupada. O(n) no tamanho do texto.
+ */
+static float textoQuebrado(const char *t, float x, float y, float largura, int tam, Color c)
+{
+    char linha[192], tentativa[192];
+    const char *p = t;
+    float yy = y;
+    size_t nl, len;
+
+    linha[0] = '\0';
+    while (*p != '\0') {
+        const char *fim = p;
+        while (*fim != '\0' && *fim != ' ') {
+            fim++;
+        }
+        len = (size_t)(fim - p);
+        nl = strlen(linha);
+        if (nl + len + 2 > sizeof(tentativa)) {
+            break;
+        }
+        memcpy(tentativa, linha, nl);
+        if (nl > 0) {
+            tentativa[nl++] = ' ';
+        }
+        memcpy(tentativa + nl, p, len);
+        tentativa[nl + len] = '\0';
+
+        if (linha[0] != '\0' && MeasureText(tentativa, tam) > largura) {
+            DrawText(linha, (int)x, (int)yy, tam, c);   /* a palavra vai para a próxima linha */
+            yy += tam + 4;
+            memcpy(linha, p, len);
+            linha[len] = '\0';
+        } else {
+            memcpy(linha, tentativa, nl + len + 1);
+        }
+        p = fim;
+        while (*p == ' ') {
+            p++;
+        }
+    }
+    if (linha[0] != '\0') {
+        DrawText(linha, (int)x, (int)yy, tam, c);
+        yy += tam + 4;
+    }
+    return yy - y;
+}
+
 /* botao: desenha um botão e devolve true se foi clicado. */
 static bool botao(Rectangle r, const char *texto, int tam, bool habilitado, bool selecionado)
 {
@@ -253,7 +308,13 @@ static void desenharPeca(const Peca *p, const ContextoDesenho *c)
             DrawCircleV(ctr, raio + esp, Fade(WHITE, 0.8f * anim->piscar));
         }
         if (anim != NULL && anim->clicavel[NUCLEO]) {
-            DrawCircleLinesV(ctr, raio + esp + 3, Fade(COR_DESTAQUE, 0.7f));
+            if (anim->pulsarClicaveis) {
+                float k = pulso();
+                DrawRing(ctr, raio + esp + 2 + 3 * k, raio + esp + 4 + 5 * k, 0, 360, 36,
+                         Fade(COR_DESTAQUE, 0.5f + 0.5f * k));
+            } else {
+                DrawCircleLinesV(ctr, raio + esp + 3, Fade(COR_DESTAQUE, 0.7f));
+            }
         }
         if (anim != NULL && anim->pecaRealcada == NUCLEO) {
             DrawRing(ctr, raio + esp + 2, raio + esp + 6, 0, 360, 36, COR_DESTAQUE);
@@ -303,8 +364,12 @@ static void desenharPeca(const Peca *p, const ContextoDesenho *c)
         DrawRectangleRounded(r, arred, 8, Fade(WHITE, 0.85f * anim->piscar));
     }
     if (anim != NULL && anim->clicavel[p->tipo]) {
-        Rectangle fora = { r.x - 3, r.y - 3, r.width + 6, r.height + 6 };
-        DrawRectangleRoundedLinesEx(fora, arred, 8, 1.5f, Fade(COR_DESTAQUE, 0.7f));
+        /* no passo "clique no alvo" o contorno pulsa para chamar a atenção */
+        float k = anim->pulsarClicaveis ? pulso() : 0.0f;
+        float folga = 3.0f + 3.0f * k;
+        Rectangle fora = { r.x - folga, r.y - folga, r.width + 2 * folga, r.height + 2 * folga };
+        DrawRectangleRoundedLinesEx(fora, arred, 8, 1.5f + 2.0f * k,
+                                    Fade(COR_DESTAQUE, anim->pulsarClicaveis ? 0.45f + 0.55f * k : 0.7f));
     }
     if (anim != NULL && anim->pecaRealcada == p->tipo) {
         Rectangle fora = { r.x - 4, r.y - 4, r.width + 8, r.height + 8 };
@@ -476,7 +541,7 @@ Tela telaComoJogar(void)
         "  A mais rápida executa primeiro. Empate: quem veio antes na intercalação.",
         "- Velocidade = base + posição na sua lista (1a +2, 2a +1, 3a +0) + 1 por perna ativa.",
         "- O Núcleo só pode ser atingido se o Tronco ou a Base caírem. Núcleo destruído = vitória.",
-        "- Depois de 10 rodadas vence quem tiver mais integridade.",
+        "- Depois de 6 rodadas vence quem tiver mais integridade.",
         "- Bloqueio segura Jab e Direto. Gancho quebra o Bloqueio. Esquiva pega o Gancho (é lento).",
     };
     static const char *colunas[] = { "Ação", "Energia", "Veloc.", "Dano", "Efeito" };
@@ -539,6 +604,7 @@ void reiniciarProgramacao(EstadoProgramacao *ep)
     ep->acao = JAB;
     ep->lado = FILHO_DIR;
     ep->cursor = 0;
+    ep->escolheuAcao = false;
     ep->mensagem[0] = '\0';
     ep->tempoMensagem = 0.0f;
 }
@@ -598,6 +664,185 @@ static void desenharCabecalho(int rodada, const char *titulo, Color corTitulo, c
     }
 }
 
+/* ================= Guia passo a passo ================= */
+
+/* Passos do guia e o estado de cada um ao desenhar */
+enum { PASSO_ACAO = 1, PASSO_PUNHO, PASSO_ALVO, PASSO_CONFIRMAR };
+enum { GUIA_PENDENTE, GUIA_LIVRE, GUIA_ATUAL, GUIA_FEITO };
+
+/* Painel do guia no meio do ringue, entre os dois robôs */
+#define GUIA_X 488.0f
+#define GUIA_Y 132.0f
+#define GUIA_L 304.0f
+#define GUIA_A 308.0f
+
+/* nenhumaAcaoDisponivel: lista cheia ou sem energia para qualquer ação. */
+static bool nenhumaAcaoDisponivel(Batalha *b, int jogador)
+{
+    int t;
+    for (t = 0; t < NUM_ACOES; t++) {
+        if (acaoDisponivel(b, jogador, (TipoAcao)t)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/*
+ * passoAtualDoGuia: em que passo o jogador está.
+ *   1 escolher a ação, 3 clicar no alvo (ou ESPAÇO na defesa),
+ *   4 confirmar quando não cabe mais nada. O punho (2) já vem escolhido.
+ */
+static int passoAtualDoGuia(Batalha *b, int jogador, const EstadoProgramacao *ep)
+{
+    if (tamanhoLista(b->programacao[jogador - 1]) >= MAX_ACOES_POR_JOGADOR
+        || nenhumaAcaoDisponivel(b, jogador)) {
+        return PASSO_CONFIRMAR;
+    }
+    if (!ep->escolheuAcao || !acaoDisponivel(b, jogador, ep->acao)) {
+        return PASSO_ACAO;
+    }
+    return PASSO_ALVO;
+}
+
+/* explicarAcao: uma frase sobre para que serve a ação. */
+static void explicarAcao(TipoAcao t, char *buf, int tam)
+{
+    switch (t) {
+    case JAB:
+        snprintf(buf, tam, "Jab: rápido e barato, tira %d. O Bloqueio corta pela metade.", danoAcao(JAB));
+        break;
+    case DIRETO:
+        snprintf(buf, tam, "Direto: o meio-termo, tira %d. O Bloqueio corta pela metade.", danoAcao(DIRETO));
+        break;
+    case GANCHO:
+        snprintf(buf, tam, "Gancho: lento e forte, tira %d e fura o Bloqueio. A Esquiva anula.",
+                 danoAcao(GANCHO));
+        break;
+    case BLOQUEIO:
+        snprintf(buf, tam, "Bloqueio: sai rápido e, até o fim da rodada, Jab e Direto tiram só a metade.");
+        break;
+    case ESQUIVA:
+        snprintf(buf, tam, "Esquiva: o próximo golpe do rival erra. Boa contra o Gancho, que é lento.");
+        break;
+    default:
+        buf[0] = '\0';
+        break;
+    }
+}
+
+/* motivoIndisponivel: por que a ação escolhida não pode entrar agora. */
+static void motivoIndisponivel(Batalha *b, int jogador, TipoAcao t, char *buf, int tam)
+{
+    Peca *r = b->robo[jogador - 1];
+    if (custoAcao(t) > energiaRestante(b, jogador)) {
+        snprintf(buf, tam, "Sem energia: %s custa %d e você tem %d. Escolha outra ação.",
+                 nomeAcao(t), custoAcao(t), energiaRestante(b, jogador));
+    } else if (ehGolpe(t) && !pecaAtiva(r, PUNHO_E) && !pecaAtiva(r, PUNHO_D)) {
+        snprintf(buf, tam, "Seu robô está sem punhos: só dá para defender.");
+    } else if (t == ESQUIVA && !pecaAtiva(r, BASE)) {
+        snprintf(buf, tam, "Sem a Base, o robô não consegue esquivar.");
+    } else {
+        buf[0] = '\0';
+    }
+}
+
+/* desenharPassoGuia: bolinha com o número (ou um visto) e o texto do passo. */
+static void desenharPassoGuia(float x, float y, int numero, const char *texto, int estado)
+{
+    Vector2 c = { x + 14, y + 14 };
+    Color corTexto;
+    char num[4];
+
+    snprintf(num, sizeof(num), "%d", numero);
+    if (estado == GUIA_FEITO) {
+        DrawCircleV(c, 13, COR_VIDA_ALTA);
+        DrawLineEx((Vector2){ c.x - 6, c.y }, (Vector2){ c.x - 2, c.y + 5 }, 3.0f, WHITE);
+        DrawLineEx((Vector2){ c.x - 2, c.y + 5 }, (Vector2){ c.x + 7, c.y - 6 }, 3.0f, WHITE);
+        corTexto = COR_TEXTO;
+    } else if (estado == GUIA_ATUAL) {
+        float k = pulso();
+        DrawCircleV(c, 14 + 5 * k, Fade(COR_DESTAQUE, 0.35f * (1.0f - k) + 0.1f));
+        DrawCircleV(c, 13, COR_DESTAQUE);
+        textoCentralizado(num, c.x, c.y - 10, 20, BLACK);
+        corTexto = COR_DESTAQUE;
+    } else {
+        Color cor = (estado == GUIA_LIVRE) ? COR_TEXTO : COR_LINHA;
+        DrawCircleLinesV(c, 13, cor);
+        textoCentralizado(num, c.x, c.y - 10, 20, cor);
+        corTexto = (estado == GUIA_LIVRE) ? COR_TEXTO : COR_TEXTO_FRACO;
+    }
+    DrawText(texto, (int)(x + 36), (int)(y + 4), 20, corTexto);
+}
+
+/*
+ * desenharGuia: painel "PASSO A PASSO" no meio do ringue. Mostra os 4
+ * passos para montar a lista, destaca o passo atual e explica a ação
+ * escolhida (ou por que ela não pode entrar).
+ */
+static void desenharGuia(Batalha *b, int jogador, const EstadoProgramacao *ep, int passo)
+{
+    Rectangle painel = { GUIA_X, GUIA_Y, GUIA_L, GUIA_A };
+    float x = GUIA_X + 14, y = GUIA_Y + 12;
+    int n = tamanhoLista(b->programacao[jogador - 1]);
+    bool golpe = ehGolpe(ep->acao);
+    bool montando = (passo == PASSO_ALVO);
+    char buf[128];
+
+    DrawRectangleRounded(painel, 0.06f, 8, Fade(COR_PAINEL, 0.94f));
+    DrawRectangleRoundedLinesEx(painel, 0.06f, 8, 2.0f, COR_LINHA);
+    DrawText("PASSO A PASSO", (int)x, (int)y, 20, COR_DESTAQUE);
+    y += 34;
+
+    /* 1: ação */
+    if (montando) {
+        snprintf(buf, sizeof(buf), "Ação: %s", nomeAcao(ep->acao));
+    } else {
+        snprintf(buf, sizeof(buf), "Escolha a ação (1-5)");
+    }
+    desenharPassoGuia(x, y, 1, buf,
+                      passo == PASSO_ACAO ? GUIA_ATUAL : montando ? GUIA_FEITO : GUIA_PENDENTE);
+    y += 36;
+
+    /* 2: punho (já vem escolhido; as setas trocam) */
+    if (montando && !golpe) {
+        snprintf(buf, sizeof(buf), "Punho: não usa");
+    } else {
+        snprintf(buf, sizeof(buf), "Punho %s (setas)", ep->lado == FILHO_ESQ ? "esquerdo" : "direito");
+    }
+    desenharPassoGuia(x, y, 2, buf, montando ? GUIA_FEITO : GUIA_PENDENTE);
+    y += 36;
+
+    /* 3: alvo ou ESPAÇO */
+    desenharPassoGuia(x, y, 3, (montando && !golpe) ? "Aperte ESPAÇO" : "Clique no alvo",
+                      montando ? GUIA_ATUAL : GUIA_PENDENTE);
+    y += 36;
+
+    /* 4: confirmar */
+    desenharPassoGuia(x, y, 4, "Confirme (ENTER)",
+                      passo == PASSO_CONFIRMAR ? GUIA_ATUAL : (n > 0 ? GUIA_LIVRE : GUIA_PENDENTE));
+    y += 42;
+
+    DrawLineEx((Vector2){ GUIA_X + 14, y }, (Vector2){ GUIA_X + GUIA_L - 14, y }, 1.0f, COR_LINHA);
+    y += 10;
+
+    /* explicação embaixo dos passos */
+    if (passo == PASSO_CONFIRMAR) {
+        textoQuebrado(n >= MAX_ACOES_POR_JOGADOR
+                          ? "Lista cheia! Aperte ENTER para confirmar ou mude a ordem antes."
+                          : "Acabou a energia. Aperte ENTER para confirmar.",
+                      x, y, GUIA_L - 28, 20, COR_TEXTO);
+        return;
+    }
+    motivoIndisponivel(b, jogador, ep->acao, buf, sizeof(buf));
+    if (buf[0] != '\0' && ep->escolheuAcao) {
+        textoQuebrado(buf, x, y, GUIA_L - 28, 20, COR_ERRO);
+        return;
+    }
+    explicarAcao(ep->acao, buf, sizeof(buf));
+    textoQuebrado(buf, x, y, GUIA_L - 28, 20, COR_TEXTO_FRACO);
+}
+
 /*
  * telaProgramacao: tela secreta em que o jogador monta a sua lista de até
  * 3 ações. Escolhe a ação (1-5), o punho (setas esq/dir) e clica na peça
@@ -618,7 +863,7 @@ Tela telaProgramacao(Batalha *b, int jogador, EstadoProgramacao *ep, const Placa
     const char *motivo = NULL;
     bool confirmar = false;
     bool shift = teclaSegura(KEY_LEFT_SHIFT) || teclaSegura(KEY_RIGHT_SHIFT);
-    int n, maxCursor, t, i;
+    int n, maxCursor, t, i, passo;
     char buf[96];
     AnimacaoRobo anim[2];
 
@@ -634,6 +879,7 @@ Tela telaProgramacao(Batalha *b, int jogador, EstadoProgramacao *ep, const Placa
     for (t = 0; t < NUM_ACOES; t++) {
         if (tecla(KEY_ONE + t) || tecla(KEY_KP_1 + t)) {
             ep->acao = (TipoAcao)t;
+            ep->escolheuAcao = true;
         }
     }
     if (tecla(KEY_LEFT) || tecla(KEY_A)) {
@@ -669,6 +915,7 @@ Tela telaProgramacao(Batalha *b, int jogador, EstadoProgramacao *ep, const Placa
     if (tecla(KEY_SPACE) && !ehGolpe(ep->acao)) {
         if (programarAcao(b, jogador, ep->acao, ep->lado, NUM_PECAS, ep->cursor, &motivo)) {
             ep->cursor++;
+            ep->escolheuAcao = false;   /* guia volta ao passo 1 */
         } else {
             avisar(ep, motivo);
         }
@@ -683,6 +930,7 @@ Tela telaProgramacao(Batalha *b, int jogador, EstadoProgramacao *ep, const Placa
         if (sobMouse != NUM_PECAS && cliqueEsquerdo()) {
             if (programarAcao(b, jogador, ep->acao, ep->lado, sobMouse, ep->cursor, &motivo)) {
                 ep->cursor++;
+                ep->escolheuAcao = false;
             } else {
                 avisar(ep, motivo);
             }
@@ -727,6 +975,7 @@ Tela telaProgramacao(Batalha *b, int jogador, EstadoProgramacao *ep, const Placa
     }
 
     /* ================= desenho ================= */
+    passo = passoAtualDoGuia(b, jogador, ep);
     desenharFundoRingue(PROG_CHAO);
     snprintf(buf, sizeof(buf), "PROGRAMAÇÃO SECRETA - JOGADOR %d", jogador);
     desenharCabecalho(b->rodada, buf, corDoJogador(jogador), placar);
@@ -744,9 +993,11 @@ Tela telaProgramacao(Batalha *b, int jogador, EstadoProgramacao *ep, const Placa
             anim[1 - idx].clicavel[t] = pecaExposta(rival, (TipoPeca)t);
         }
         anim[1 - idx].pecaRealcada = sobMouse;
+        anim[1 - idx].pulsarClicaveis = (passo == PASSO_ALVO);
     }
     desenharRobo(b->robo[0], posicoes[0], PROG_ESCALA, false, COR_J1, &anim[0]);
     desenharRobo(b->robo[1], posicoes[1], PROG_ESCALA, true, COR_J2, &anim[1]);
+    desenharGuia(b, jogador, ep, passo);
 
     /* marcadores numerados nas peças que a sua lista já mira */
     {
@@ -781,6 +1032,12 @@ Tela telaProgramacao(Batalha *b, int jogador, EstadoProgramacao *ep, const Placa
 
     /* coluna 1: ação e punho */
     DrawText("AÇÃO (teclas 1-5)", 20, 488, 20, COR_DESTAQUE);
+    if (passo == PASSO_ACAO) {
+        /* guia: moldura piscando em volta dos botões de ação */
+        float k = pulso();
+        DrawRectangleRoundedLinesEx((Rectangle){ 14, 508, 468, 82 }, 0.12f, 8, 2.0f + 2.0f * k,
+                                    Fade(COR_DESTAQUE, 0.35f + 0.65f * k));
+    }
     for (t = 0; t < NUM_ACOES; t++) {
         Rectangle r = { 20.0f + t * 92, 514, 88, 70 };
         bool disp = acaoDisponivel(b, jogador, (TipoAcao)t);
@@ -788,6 +1045,7 @@ Tela telaProgramacao(Batalha *b, int jogador, EstadoProgramacao *ep, const Placa
         Color cor = sel ? (Color){ 24, 24, 30, 255 } : (disp ? COR_TEXTO : (Color){ 100, 100, 112, 255 });
         if (botao(r, NULL, 20, true, sel)) {
             ep->acao = (TipoAcao)t;
+            ep->escolheuAcao = true;
         }
         if (!disp && !sel) {
             DrawRectangleRounded(r, 0.2f, 6, Fade(BLACK, 0.45f));
@@ -822,6 +1080,7 @@ Tela telaProgramacao(Batalha *b, int jogador, EstadoProgramacao *ep, const Placa
                   acaoDisponivel(b, jogador, ep->acao), false)) {
             if (programarAcao(b, jogador, ep->acao, ep->lado, NUM_PECAS, ep->cursor, &motivo)) {
                 ep->cursor++;
+                ep->escolheuAcao = false;
             } else {
                 avisar(ep, motivo);
             }
@@ -878,6 +1137,11 @@ Tela telaProgramacao(Batalha *b, int jogador, EstadoProgramacao *ep, const Placa
         DrawText(buf, 940, 562, 10, COR_TEXTO_FRACO);
         DrawText("Setas cima/baixo: posição   SHIFT+setas: trocar", 940, 580, 10, COR_TEXTO_FRACO);
         DrawText("DEL: remover   F1: árvores e lista", 940, 596, 10, COR_TEXTO_FRACO);
+        if (passo == PASSO_CONFIRMAR) {
+            float k = pulso();
+            DrawRectangleRoundedLinesEx((Rectangle){ 934, 614, 332, 68 }, 0.2f, 8, 2.0f + 2.0f * k,
+                                        Fade(COR_DESTAQUE, 0.35f + 0.65f * k));
+        }
         if (botao((Rectangle){ 940, 620, 320, 56 }, "CONFIRMAR (ENTER)", 20, n > 0, false)) {
             confirmar = true;
         }

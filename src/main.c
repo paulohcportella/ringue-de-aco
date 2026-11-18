@@ -4,7 +4,7 @@
  *
  * Fluxo de uma rodada:
  *   Programação J1 -> Troca -> Programação J2 -> Resolução -> Resumo -> Troca -> ...
- * Fim de luta: Núcleo destruído (vitória imediata) ou fim das 10 rodadas.
+ * Fim de luta: Núcleo destruído (vitória imediata) ou fim das rodadas (MAX_RODADAS).
  */
 #include <stdbool.h>
 #include <stddef.h>

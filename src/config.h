@@ -12,17 +12,17 @@
 #define FPS_ALVO       60
 
 /* ---------- Regras gerais ---------- */
-#define MAX_RODADAS            10
+#define MAX_RODADAS            6
 #define ENERGIA_POR_RODADA     5
 #define MAX_ACOES_POR_JOGADOR  3
 
-/* ---------- Resistências iniciais das peças (total 420) ---------- */
-#define RES_NUCLEO 60
-#define RES_TRONCO 80
-#define RES_BASE   70
-#define RES_BRACO  40
-#define RES_PUNHO  30
-#define RES_PERNA  35
+/* ---------- Resistências iniciais das peças (total 275) ---------- */
+#define RES_NUCLEO 40
+#define RES_TRONCO 50
+#define RES_BASE   45
+#define RES_BRACO  25
+#define RES_PUNHO  20
+#define RES_PERNA  25
 
 /* ---------- Tabela de ações: energia, velocidade base e dano ---------- */
 #define ENERGIA_JAB       1

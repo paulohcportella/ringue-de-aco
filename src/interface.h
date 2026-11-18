@@ -33,6 +33,7 @@ typedef struct {
     TipoAcao acao;          /* ação escolhida nos botões */
     int lado;               /* punho escolhido: 0 E, 1 D */
     int cursor;             /* posição da lista selecionada (0 a 2) */
+    bool escolheuAcao;      /* guia: o jogador já escolheu a próxima ação */
     char mensagem[96];      /* aviso de erro */
     float tempoMensagem;    /* segundos restantes do aviso */
 } EstadoProgramacao;
@@ -48,6 +49,7 @@ typedef struct {
     bool destacarNucleo;        /* anel pulsando no núcleo exposto */
     TipoPeca pecaRealcada;      /* contorno forte (mouse em cima) */
     bool clicavel[NUM_PECAS];   /* contorno fraco nas peças clicáveis */
+    bool pulsarClicaveis;       /* guia: o contorno das clicáveis pisca */
 } AnimacaoRobo;
 
 /* Cartão da fila de execução com posição animada */

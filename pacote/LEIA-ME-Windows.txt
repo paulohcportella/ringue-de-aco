@@ -1,0 +1,34 @@
+RINGUE DE AÇO - versão executável para Windows
+================================================
+
+Como rodar
+----------
+1. Extraia esta pasta em qualquer lugar (Área de Trabalho, pendrive).
+2. Dê dois cliques em RingueDeAco.exe.
+   Não precisa instalar nada: a raylib já está dentro do executável.
+
+Se o Windows mostrar "O Windows protegeu o computador" (SmartScreen),
+clique em "Mais informações" e depois em "Executar assim mesmo".
+Isso acontece com qualquer executável novo e sem assinatura digital.
+
+Requisitos: Windows 10 ou 11, 64 bits, placa de vídeo com OpenGL 3.3
+(praticamente qualquer computador dos últimos 10 anos).
+
+Controles
+---------
+Menu ............................ setas + ENTER, ou mouse
+Programação (tela secreta):
+  1 a 5 ......................... escolher a ação
+  setas esquerda/direita ........ escolher o punho
+  clique na peça do rival ....... programar o golpe
+  ESPAÇO ........................ adicionar Bloqueio ou Esquiva
+  setas cima/baixo .............. escolher a posição na lista
+  SHIFT + cima/baixo ............ trocar a ação de lugar
+  DEL ........................... remover a ação
+  ENTER ......................... confirmar
+Tela de troca e resolução ....... ESPAÇO continua / adianta
+F1 (durante a luta) ............. mostra as árvores e a lista
+Fim da luta ..................... R revanche, M menu
+
+Código-fonte e instruções para compilar: README.md do projeto.
+Paulo Portella, Gustavo Laporte e Gabriel Ferraz - AED, CESAR School, Turma B.

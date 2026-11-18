@@ -1,0 +1,37 @@
+RINGUE DE AÇO - versão para macOS
+==================================
+
+Como rodar
+----------
+1. Extraia o zip e arraste o RingueDeAco.app para onde quiser (Aplicativos, Mesa).
+2. Abra o RingueDeAco.app. Não precisa instalar nada: a raylib já está dentro.
+
+Na primeira vez o macOS avisa que não pode verificar o desenvolvedor, porque
+o app não tem assinatura paga da Apple. Para liberar:
+  - clique em OK no aviso;
+  - abra Ajustes do Sistema > Privacidade e Segurança;
+  - role até o aviso do RingueDeAco e clique em "Abrir Mesmo Assim".
+
+Pelo Terminal também funciona (na pasta onde está o app):
+  xattr -dr com.apple.quarantine RingueDeAco.app
+
+Requisitos: macOS 11 ou mais novo, Intel ou Apple Silicon.
+
+Controles
+---------
+Menu ............................ setas + ENTER, ou mouse
+Programação (tela secreta):
+  1 a 5 ......................... escolher a ação
+  setas esquerda/direita ........ escolher o punho
+  clique na peça do rival ....... programar o golpe
+  ESPAÇO ........................ adicionar Bloqueio ou Esquiva
+  setas cima/baixo .............. escolher a posição na lista
+  SHIFT + cima/baixo ............ trocar a ação de lugar
+  DEL ........................... remover a ação
+  ENTER ......................... confirmar
+Tela de troca e resolução ....... ESPAÇO continua / adianta
+F1 (durante a luta) ............. mostra as árvores e a lista
+Fim da luta ..................... R revanche, M menu
+
+Código-fonte: https://github.com/paulohcportella/ringue-de-aco
+Paulo Portella, Gustavo Laporte e Gabriel Ferraz - AED, CESAR School, Turma B.

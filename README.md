@@ -5,6 +5,39 @@ Projeto da disciplina **Algoritmos e Estruturas de Dados** (CESAR School, turma 
 
 Dois jogadores no mesmo computador. A cada rodada, cada um programa em segredo até 3 ações. As ações dos dois são unidas numa lista encadeada, ordenadas por velocidade com **Insertion Sort** e executadas uma a uma. Cada robô é uma **árvore binária** de peças: quando uma peça é destruída, tudo que está abaixo dela desliga.
 
+## Só quero jogar
+
+Baixe o jogo pronto na página de [Releases](https://github.com/paulohcportella/ringue-de-aco/releases). Não precisa instalar nada.
+
+**Windows 10/11 (64 bits):** baixe `RingueDeAco-Windows.zip`, extraia e dê dois cliques em `RingueDeAco.exe`. Se aparecer "O Windows protegeu o computador", clique em **Mais informações** e depois em **Executar assim mesmo** (o executável não tem assinatura digital paga).
+
+**macOS 11 ou mais novo (Intel ou Apple Silicon):** baixe `RingueDeAco-macOS.zip`, extraia e abra o `RingueDeAco.app`. Na primeira vez o macOS avisa que não pode verificar o desenvolvedor: clique em **OK**, vá em **Ajustes do Sistema > Privacidade e Segurança**, role até o aviso do Ringue de Aço e clique em **Abrir Mesmo Assim**. Pelo Terminal também funciona:
+
+```bash
+xattr -dr com.apple.quarantine RingueDeAco.app
+```
+
+Os executáveis são gerados pelo GitHub Actions a partir deste código (`.github/workflows/build.yml`), que também roda os testes no Windows, no macOS e no Linux.
+
+## Como executar a partir do código (resumo)
+
+1. Tenha `gcc`, `make` e a raylib 5.5 instalados (passo a passo por sistema logo abaixo).
+2. Na pasta do projeto, rode:
+
+```bash
+make run
+```
+
+Se a raylib não estiver num caminho padrão, informe a pasta dela (a que contém `include/` e `lib/`):
+
+```bash
+make RAYLIB=C:/raylib run
+```
+
+3. No menu, escolha **Nova luta**. O Jogador 1 programa as ações e confirma com ENTER, passa o computador para o Jogador 2, e a rodada é resolvida na tela. As regras completas estão em [Como jogar](#como-jogar) e na opção **Como jogar** do menu.
+
+Para rodar só os testes da lógica (não precisa de raylib): `make test`.
+
 ---
 
 ## Como compilar e rodar
@@ -33,12 +66,15 @@ RAYLIB = C:/raylib
 ### Windows (w64devkit)
 
 1. Baixe o **w64devkit** (gcc + make) em https://github.com/skeeto/w64devkit/releases e extraia, por exemplo em `C:\w64devkit`.
-2. Baixe a raylib 5.5 pré-compilada para MinGW: `raylib-5.5_win64_mingw-w64.zip` em https://github.com/raysan5/raylib/releases/tag/5.5 e extraia, por exemplo em `C:\raylib`.
+2. Baixe a raylib 5.5 pré-compilada para MinGW: `raylib-5.5_win64_mingw-w64.zip` em https://github.com/raysan5/raylib/releases/tag/5.5 e extraia.
+   **Atenção:** o zip tem uma pasta dentro (`raylib-5.5_win64_mingw-w64`). O `RAYLIB=` precisa apontar para a pasta que contém `include` e `lib` diretamente. O jeito mais simples: mova o conteúdo dessa pasta para `C:\raylib`, de modo que existam `C:\raylib\include\raylib.h` e `C:\raylib\lib\libraylib.a`.
 3. Abra o `C:\w64devkit\w64devkit.exe` (ou coloque `C:\w64devkit\bin` no PATH), entre na pasta do projeto e rode:
 
 ```bash
 make RAYLIB=C:/raylib run
 ```
+
+Use barras normais (`/`) no caminho. Se a raylib ficou em outra pasta, troque `C:/raylib` pelo caminho dela.
 
 Se o Windows mostrar "Uma política de Controle de Aplicativo bloqueou este arquivo", é o **Controle Inteligente de Aplicativos** do Windows 11 barrando um executável novo e sem assinatura. Rode o jogo em outra máquina ou ajuste essa configuração em Segurança do Windows > Controle de aplicativos e navegador (a decisão é sua; o jogo não precisa disso para compilar nem para os testes).
 
@@ -68,6 +104,14 @@ Outra opção é extrair `raylib-5.5_linux_amd64.tar.gz` das releases e usar `ma
 
 ### macOS
 
+Instale as ferramentas de linha de comando da Apple (trazem o compilador e o `make`) e o [Homebrew](https://brew.sh), se ainda não tiver:
+
+```bash
+xcode-select --install
+```
+
+Depois instale a raylib e o pkg-config e rode o jogo na pasta do projeto:
+
 ```bash
 brew install raylib pkg-config
 ```
@@ -76,11 +120,13 @@ brew install raylib pkg-config
 make run
 ```
 
+No macOS o `gcc` é o clang da Apple, e funciona normalmente. O jogo abre numa janela; o Terminal só serve para iniciar.
+
 ---
 
 ## Como jogar
 
-**Objetivo:** destruir o **Núcleo** do robô rival. Se ninguém conseguir em 10 rodadas, vence quem tiver mais integridade (soma da resistência das peças ativas). Igual: empate.
+**Objetivo:** destruir o **Núcleo** do robô rival. Se ninguém conseguir em 6 rodadas, vence quem tiver mais integridade (soma da resistência das peças ativas). Igual: empate.
 
 **A rodada:**
 1. O Jogador 1 programa sua lista em segredo e confirma com ENTER.
@@ -106,7 +152,7 @@ make run
 - **Gancho quebra o Bloqueio:** é o único golpe que ignora a guarda.
 - **Esquiva pega o Gancho:** o Gancho é o mais lento (3), então a Esquiva (6) quase sempre executa antes e anula o golpe.
 
-**Peças:** Núcleo 60, Tronco 80, Base 70, cada Braço 40, cada Punho 30, cada Perna 35 (total 420).
+**Peças:** Núcleo 40, Tronco 50, Base 45, cada Braço 25, cada Punho 20, cada Perna 25 (total 275).
 - Tronco destruído desliga os dois braços e punhos: o robô não ataca mais.
 - Braço destruído desliga o punho daquele lado.
 - Base destruída desliga as pernas: sem esquiva e sem bônus de velocidade.
@@ -165,6 +211,8 @@ No fim da luta: **R** revanche direto, **M** menu. O placar vale enquanto o prog
 
 `tests/test_logica.c` tem 16 testes com `assert`: montagem e busca na árvore, dano mínimo zero, cascata de desativação (Tronco, Braço, Base), núcleo exposto, inserir/remover/trocar ações, intercalação nas rodadas ímpares e pares, Insertion Sort com empate estável (conferindo que os nós mudaram de lugar, não os valores), remoção de ações inválidas, validação, Bloqueio x Gancho, Esquiva, golpe no vazio, cancelamento e reordenação no meio da rodada, uma luta completa até a vitória e o fim por rodadas (empate e vitória por integridade).
 
+A cada push, o GitHub Actions roda `make test` no Linux, no macOS e no Windows, e `make valgrind` no Linux.
+
 No Linux e no Windows, o Makefile liga os testes com `-Wl,--wrap=malloc -Wl,--wrap=free`: cada `malloc` e `free` passa por um contador, e cada teste confere que nenhuma alocação ficou sobrando. No Linux também dá para rodar `make valgrind`.
 
 ---
@@ -183,6 +231,11 @@ src/
   interface.h/.c  desenho e entrada (único módulo de jogo com raylib)
 tests/
   test_logica.c   testes com assert
+ferramentas/
+  capturar_telas.c  joga uma luta roteirizada e salva um PNG de cada tela
+pacote/           LEIA-ME e Info.plist dos pacotes prontos (Windows e macOS)
+.github/workflows/
+  build.yml       compila e testa no Linux, macOS e Windows; publica as Releases
 ```
 
 ---
