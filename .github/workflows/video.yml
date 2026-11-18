@@ -1,0 +1,35 @@
+# Grava um vídeo do jogo de verdade jogando uma luta completa numa tela
+# virtual do Linux (teclado e mouse simulados). Roda só quando pedido.
+name: video
+
+on:
+  workflow_dispatch:
+
+jobs:
+  video:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dependências
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential pkg-config xvfb xdotool ffmpeg libasound2-dev \
+            libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev libgl1-mesa-dri libxcursor-dev libxinerama-dev
+      - name: raylib 5.5
+        run: |
+          git clone --depth 1 --branch 5.5 https://github.com/raysan5/raylib.git /tmp/raylib
+          make -C /tmp/raylib/src PLATFORM=PLATFORM_DESKTOP -j4
+          sudo make -C /tmp/raylib/src install
+      - name: Compilar o jogo e o auxiliar de coordenadas
+        run: |
+          make
+          gcc -std=c99 -O2 -Isrc ferramentas/centros_pecas.c src/interface.c src/robo.c src/acoes.c \
+            src/batalha.c -o centros -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
+      - name: Gravar
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: bash ferramentas/gravar_video.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: video
+          path: video/ringue-de-aco.mp4

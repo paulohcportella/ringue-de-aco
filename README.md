@@ -5,23 +5,9 @@ Projeto da disciplina **Algoritmos e Estruturas de Dados** (CESAR School, turma 
 
 Dois jogadores no mesmo computador. A cada rodada, cada um programa em segredo até 3 ações. As ações dos dois são unidas numa lista encadeada, ordenadas por velocidade com **Insertion Sort** e executadas uma a uma. Cada robô é uma **árvore binária** de peças: quando uma peça é destruída, tudo que está abaixo dela desliga.
 
-## Só quero jogar
+## Como executar (resumo)
 
-Baixe o jogo pronto na página de [Releases](https://github.com/paulohcportella/ringue-de-aco/releases). Não precisa instalar nada.
-
-**Windows 10/11 (64 bits):** baixe `RingueDeAco-Windows.zip`, extraia e dê dois cliques em `RingueDeAco.exe`. Se aparecer "O Windows protegeu o computador", clique em **Mais informações** e depois em **Executar assim mesmo** (o executável não tem assinatura digital paga).
-
-**macOS 11 ou mais novo (Intel ou Apple Silicon):** baixe `RingueDeAco-macOS.zip`, extraia e abra o `RingueDeAco.app`. Na primeira vez o macOS avisa que não pode verificar o desenvolvedor: clique em **OK**, vá em **Ajustes do Sistema > Privacidade e Segurança**, role até o aviso do Ringue de Aço e clique em **Abrir Mesmo Assim**. Pelo Terminal também funciona:
-
-```bash
-xattr -dr com.apple.quarantine RingueDeAco.app
-```
-
-Os executáveis são gerados pelo GitHub Actions a partir deste código (`.github/workflows/build.yml`), que também roda os testes no Windows, no macOS e no Linux.
-
-## Como executar a partir do código (resumo)
-
-1. Tenha `gcc`, `make` e a raylib 5.5 instalados (passo a passo por sistema logo abaixo).
+1. Tenha `gcc`, `make` e a raylib 5.5 (a 6 também funciona) instalados (passo a passo por sistema logo abaixo).
 2. Na pasta do projeto, rode:
 
 ```bash
@@ -233,9 +219,12 @@ tests/
   test_logica.c   testes com assert
 ferramentas/
   capturar_telas.c  joga uma luta roteirizada e salva um PNG de cada tela
-pacote/           LEIA-ME e Info.plist dos pacotes prontos (Windows e macOS)
+  centros_pecas.c   ponto do meio de cada peça na tela (para clicar no vídeo)
+  gravar_video.sh   grava uma luta completa numa tela virtual do Linux
+pacote/           LEIA-ME e Info.plist dos pacotes gerados pelo GitHub Actions
 .github/workflows/
-  build.yml       compila e testa no Linux, macOS e Windows; publica as Releases
+  build.yml       compila e testa no Linux, macOS e Windows
+  video.yml       grava o vídeo do jogo (sob demanda)
 ```
 
 ---
