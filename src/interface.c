@@ -172,9 +172,14 @@ static void desenharFundoRingue(float chao)
     int i;
     DrawRectangleGradientV(0, 0, LARGURA_JANELA, (int)chao, (Color){ 14, 14, 22, 255 },
                            (Color){ 34, 30, 48, 255 });
-    /* holofotes */
+    /* holofotes (a raylib 6 passou a receber o centro como Vector2) */
+#if defined(RAYLIB_VERSION_MAJOR) && RAYLIB_VERSION_MAJOR >= 6
+    DrawCircleGradient((Vector2){ LARGURA_JANELA / 2.0f, chao - 260.0f }, 420.0f,
+                       Fade((Color){ 255, 240, 200, 255 }, 0.07f), Fade(BLACK, 0.0f));
+#else
     DrawCircleGradient(LARGURA_JANELA / 2, (int)(chao - 260), 420.0f,
                        Fade((Color){ 255, 240, 200, 255 }, 0.07f), Fade(BLACK, 0.0f));
+#endif
     /* postes e cordas */
     DrawRectangle(90, (int)(chao - 300), 14, 300, (Color){ 60, 60, 72, 255 });
     DrawRectangle(LARGURA_JANELA - 104, (int)(chao - 300), 14, 300, (Color){ 60, 60, 72, 255 });
