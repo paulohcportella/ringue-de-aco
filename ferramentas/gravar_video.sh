@@ -7,7 +7,8 @@ set -euo pipefail
 
 export DISPLAY=:99
 mkdir -p video
-Xvfb :99 -screen 0 1280x720x24 &
+export LIBGL_DRI3_DISABLE=1
+Xvfb :99 -screen 0 1280x720x24 -ac +extension GLX +render -noreset &
 sleep 2
 
 # coordenadas do meio de cada peça na tela de programação
