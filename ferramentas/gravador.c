@@ -7,6 +7,7 @@
  * tempo real. Também desenha uma seta onde está o mouse, para o vídeo
  * mostrar os cliques.
  */
+#define _POSIX_C_SOURCE 200809L   /* popen/pclose não aparecem em -std=c99 sem isto */
 #include <stdio.h>
 #include <stdlib.h>
 #include "raylib.h"
